@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stylish Points Game</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    }
+    .game-container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 12px 25px rgba(0,0,0,0.25);
+      text-align: center;
+      width: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      transition: transform 0.3s ease;
+    }
+    .game-container:hover { transform: translateY(-5px); }
+
+    h1 { font-size: 26px; color: #333; }
+    #points { font-weight: bold; color: #0078d7; font-size: 30px; }
+    #multiplier { font-size: 16px; color: #555; }
+
+    .button-row {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      align-items: flex-end;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.3s ease;
+    }
+
+    #click {
+      background: linear-gradient(135deg, #0078d7, #00aaff);
+      color: #fff;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 18px;
+      box-shadow: 0 4px 10px rgba(0,120,215,0.4);
+    }
+    #click:hover { transform: scale(1.05); box-shadow: 0 6px 14px rgba(0,120,215,0.6); }
+
+    #upgrade {
+      background: linear-gradient(135deg, #ff9800, #ffc107);
+      color: #fff;
+      width: 60px; height: 60px;
+      border-radius: 14px; font-size: 20px;
+      display: none;
+      box-shadow: 0 4px 10px rgba(255,152,0,0.4);
+    }
+    #upgrade:hover { transform: rotate(10deg) scale(1.1); }
+
+    #boost {
+      background: linear-gradient(135deg, #d32f2f, #f44336);
+      color: #fff;
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-size: 16px; display: none;
+      box-shadow: 0 4px 10px rgba(211,47,47,0.4);
+    }
+    #boost.cooldown { background: #888; cursor: not-allowed; box-shadow: none; }
+    #boost.active { box-shadow: 0 0 20px 4px rgba(255,0,0,0.6); }
+    #boost:hover:not(.cooldown) { transform: scale(1.05); }
+
+    /* Vertical cooldown bar (fills upward) */
+    .cooldown-container {
+      width: 12px;
+      height: 60px;
+      background: #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+      display: none;
+      position: relative;
+    }
+    .cooldown-bar {
+      width: 100%;
+      height: 0%;
+      position: absolute;
+      bottom: 0;
+      background: linear-gradient(to top, #d32f2f, #ff9800, #4caf50);
+      transition: height 1s linear;
+    }
+
+    #status {
+      font-size: 14px;
+      color: #555;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    #status.show { opacity: 1; }
+
+    .progress-container {
+      width: 100%; height: 20px;
+      background: #ddd; border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px; /* spacing so it doesn’t clip bottom */
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .progress-bar {
+      height: 100%; width: 0%;
+      background: linear-gradient(135deg, #0078d7, #00aaff);
+      transition: width 0.3s ease;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.75; } 100% { opacity: 1; } }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h1>Points: <span id="points">0</span></h1>
+    <div id="multiplier">Points per click: 1</div>
+
+    <div class="button-row">
+      <button id="click">Click</button>
+      <button id="boost">Boost</button>
+      <div class="cooldown-container">
+        <div id="cooldown-bar" class="cooldown-bar"></div>
+      </div>
+    </div>
+
+    <button id="upgrade">+</button>
+    <div id="status">Earn 10 points to unlock upgrade.</div>
+
+    <div class="progress-container">
+      <div id="progress-bar" class="progress-bar"></div>
+    </div>
+  </div>
+
+  <script>
+    let points = 0;
+    let pointsPerClick = 1;
+    let upgradeCost = 10;     // triples each time
+    let boostCost = 300;      // one-time unlock
+    let boostUnlocked = false;
+    let boostActive = false;
+    let boostCooldown = false;
+
+    const pointsEl = document.getElementById('points');
+    const clickBtn = document.getElementById('click');
+    const upgradeBtn = document.getElementById('upgrade');
+    const boostBtn = document.getElementById('boost');
+    const statusEl = document.getElementById('status');
+    const multiplierEl = document.getElementById('multiplier');
+    const progressBar = document.getElementById('progress-bar');
+    const cooldownContainer = document.querySelector('.cooldown-container');
+    const cooldownBar = document.getElementById('cooldown-bar');
+
+    function showStatus(msg) {
+      statusEl.textContent = msg;
+      statusEl.classList.add('show');
+      setTimeout(() => statusEl.classList.remove('show'), 1600);
+    }
+
+    function updateUI() {
+      pointsEl.textContent = points;
+      multiplierEl.textContent = `Points per click: ${pointsPerClick}`;
+
+      // Progress bar fill for upgrade
+      const progress = Math.min((points / upgradeCost) * 100, 100);
+      progressBar.style.width = progress + "%";
+
+      // Upgrade button visibility
+      if (points >= upgradeCost) {
+        upgradeBtn.style.display = 'inline-block';
+      } else {
+        upgradeBtn.style.display = 'none';
+      }
+
+      // Boost unlock (pay once, then stays visible)
+      if (!boostUnlocked && points >= boostCost) {
+        boostUnlocked = true;
+        points -= boostCost;
+        boostBtn.style.display = 'inline-block';
+        showStatus("Boost unlocked!");
+      }
+    }
+
+    clickBtn.onclick = function() {
+      points += pointsPerClick;
+      updateUI();
+    };
+
+    upgradeBtn.onclick = function() {
+      if (points >= upgradeCost) {
+        points -= upgradeCost;
+        pointsPerClick *= 2;
+        upgradeCost *= 3; // triple scaling
+        showStatus(`Upgrade applied. Next costs ${upgradeCost}.`);
+        updateUI();
+      }
+    };
+
+    boostBtn.onclick = function() {
+      if (boostCooldown || boostActive) return;
+      if (!boostUnlocked) return;
+
+      const originalPPC = pointsPerClick;
+      pointsPerClick *= 5;    // boost power
+      boostActive = true;
+      boostCooldown = false;
+      boostBtn.textContent = "Cooldown...";
+      boostBtn.classList.add('cooldown','active');
+      showStatus("Boost ×5 for 5s.");
+      updateUI();
+
+      // End boost after 5 seconds
+      setTimeout(() => {
+        pointsPerClick = originalPPC;
+        boostActive = false;
+        boostCooldown = true;
+        boostBtn.classList.remove('active');
+        startCooldown(30); // 30s cooldown
+      }, 5000);
+    };
+
+    function startCooldown(seconds) {
+      cooldownContainer.style.display = 'block';
+      cooldownBar.style.height = "0%"; // reset bar to bottom
+      let elapsed = 0;
+
+      const interval = setInterval(() => {
+        elapsed++;
+        const percent = (elapsed / seconds) * 100;
+        cooldownBar.style.height = percent + "%"; // fills upward
+
+        if (elapsed >= seconds) {
+          clearInterval(interval);
+          boostCooldown = false;
+          cooldownContainer.style.display = 'none';
+          boostBtn.classList.remove('cooldown');
+          boostBtn.textContent = "Boost";
+          showStatus("Boost ready again!");
+        }
+      }, 1000);
+    }
+
+    updateUI();
+  </script>
+</body>
+</html>
+
