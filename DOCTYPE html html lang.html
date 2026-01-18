@@ -1,0 +1,2472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Subject Games: Sector Two — Crimson Verge Build</title>
+
+<style>
+    :root {
+        --bg: #05070b;
+        --text: #c7f0ff;
+        --border: #1f3b4d;
+        --accent: #3fa9f5;
+    }
+
+    *, *::before, *::after {
+        box-sizing: border-box;
+        animation: none !important;
+        transform: none !important;
+        text-shadow: none !important;
+    }
+
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: Consolas, monospace;
+        margin: 0;
+        padding: 0;
+        display: block;
+        min-height: 100vh;
+        overflow-y: auto;
+    }
+
+    #intro {
+        position: absolute;
+        inset: 0;
+        background: #000;
+        color: #8ff0ff;
+        padding: 30px;
+        font-size: 1rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-y: auto;
+        font-family: Consolas, monospace;
+        z-index: 100;
+        opacity: 1;
+        transition: opacity 0.4s linear;
+    }
+
+    #introContent {
+        max-width: 800px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 2;
+    }
+
+    #scanwave {
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+            to bottom,
+            rgba(0, 255, 255, 0.25),
+            rgba(0, 255, 255, 0.25) 2px,
+            rgba(0, 0, 0, 0.0) 4px
+        );
+        opacity: 0.18;
+        mix-blend-mode: screen;
+        pointer-events: none;
+        z-index: 1;
+        animation: scanwaveMove 1.5s linear infinite;
+    }
+
+    @keyframes scanwaveMove {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(10px) skewX(1deg); }
+        100% { transform: translateY(-10px); }
+    }
+
+    #game {
+        display: none;
+        grid-template-columns: 260px 1fr 260px;
+        grid-template-rows: auto auto 160px;
+        gap: 10px;
+        padding: 10px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .panel {
+        border: 1px solid var(--border);
+        padding: 10px;
+        background: rgba(10, 20, 30, 0.8);
+        font-size: 0.9rem;
+    }
+
+    #stats {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    #inventory {
+        grid-column: 1;
+        grid-row: 2;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+
+    #area {
+        grid-column: 2;
+        grid-row: 1 / 3;
+    }
+
+    #actions {
+        grid-column: 3;
+        grid-row: 1 / 3;
+    }
+
+    #log {
+        grid-column: 1 / 4;
+        grid-row: 3;
+        overflow-y: auto;
+        font-size: 0.85rem;
+        max-height: 180px;
+    }
+
+    button {
+        width: 100%;
+        margin-bottom: 8px;
+        padding: 8px;
+        background: var(--border);
+        color: var(--text);
+        border: 1px solid var(--accent);
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+        outline: none;
+    }
+
+    button:hover {
+        background: var(--accent);
+        color: #000;
+    }
+
+    button:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+
+    hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 8px 0;
+    }
+
+    #mapUI,
+    #fullMapUI,
+    #craftUI,
+    #useItemUI,
+    #gameOverUI {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.75);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 20;
+    }
+
+    #mapWindow,
+    #fullMapWindow,
+    #craftWindow,
+    #useItemWindow,
+    #gameOverWindow {
+        background: rgba(5,15,25,0.95);
+        border: 2px solid var(--accent);
+        padding: 20px;
+        width: 520px;
+        max-width: 95vw;
+        max-height: 80vh;
+        overflow-y: auto;
+        text-align: left;
+        color: var(--text);
+        font-size: 0.9rem;
+    }
+
+    #craftWindow, #craftWindow *,
+    #fullMapWindow, #fullMapWindow *,
+    #useItemWindow, #useItemWindow *,
+    #gameOverWindow, #gameOverWindow * {
+        font-size: 0.9rem !important;
+        color: var(--text) !important;
+        text-shadow: none !important;
+    }
+
+    #overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        display: none;
+    }
+
+    .overlay-base {
+        width: 100%;
+        height: 100%;
+        opacity: 0.25;
+        position: absolute;
+        inset: 0;
+    }
+
+    .overlay-shoreline {
+        background:
+            radial-gradient(circle at top, rgba(0,120,200,0.4), transparent 60%),
+            linear-gradient(to bottom, rgba(40,30,20,0.5), transparent);
+        animation: shorelineFog 30s linear infinite;
+    }
+
+    @keyframes shorelineFog {
+        0% { transform: translateX(0); opacity: 0.22; }
+        50% { transform: translateX(12px); opacity: 0.3; }
+        100% { transform: translateX(-12px); opacity: 0.22; }
+    }
+
+    .overlay-storm {
+        background:
+            repeating-linear-gradient(
+                135deg,
+                rgba(120,180,255,0.35),
+                rgba(120,180,255,0.35) 2px,
+                rgba(0,0,0,0.0) 4px
+            );
+        animation: stormLines 4s linear infinite;
+    }
+
+    @keyframes stormLines {
+        0% { transform: translateY(0); opacity: 0.25; }
+        40% { transform: translateY(15px); opacity: 0.35; }
+        41% { opacity: 0.1; }
+        42% { opacity: 0.35; }
+        100% { transform: translateY(-15px); opacity: 0.25; }
+    }
+
+    .overlay-graveyard {
+        background:
+            radial-gradient(circle at bottom, rgba(150,80,40,0.5), transparent 65%),
+            radial-gradient(circle at center, rgba(0,0,0,0.6), transparent 70%);
+        animation: graveyardDust 35s linear infinite;
+    }
+
+    @keyframes graveyardDust {
+        0% { transform: translateX(0); opacity: 0.25; }
+        50% { transform: translateX(10px); opacity: 0.3; }
+        100% { transform: translateX(-10px); opacity: 0.25; }
+    }
+
+    .overlay-jungle {
+        background:
+            radial-gradient(circle at left, rgba(40,150,80,0.5), transparent 60%),
+            radial-gradient(circle at top, rgba(0,60,20,0.5), transparent 70%);
+        animation: junglePollen 32s linear infinite;
+    }
+
+    @keyframes junglePollen {
+        0% { transform: translate(0,0); opacity: 0.24; }
+        50% { transform: translate(8px, -8px); opacity: 0.3; }
+        100% { transform: translate(-8px, 8px); opacity: 0.24; }
+    }
+
+    .overlay-anomaly {
+        background:
+            repeating-linear-gradient(135deg,
+                rgba(200,80,255,0.4),
+                rgba(200,80,255,0.4) 2px,
+                transparent 2px,
+                transparent 4px);
+        animation: anomalyGlitch 6s linear infinite;
+    }
+
+    @keyframes anomalyGlitch {
+        0% { transform: translate(0,0); opacity: 0.25; }
+        20% { transform: translate(2px,-2px); opacity: 0.35; }
+        21% { opacity: 0.15; }
+        22% { opacity: 0.3; }
+        100% { transform: translate(0,0); opacity: 0.25; }
+    }
+
+    .overlay-listening {
+        background:
+            linear-gradient(90deg, rgba(255,60,60,0.3), transparent, rgba(255,60,60,0.3)),
+            repeating-linear-gradient(
+                to right,
+                rgba(255,255,255,0.08),
+                rgba(255,255,255,0.08) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+        animation: listeningSweep 28s linear infinite;
+    }
+
+    @keyframes listeningSweep {
+        0% { transform: translateX(-20px); opacity: 0.22; }
+        50% { transform: translateX(20px); opacity: 0.3; }
+        100% { transform: translateX(-20px); opacity: 0.22; }
+    }
+
+    .overlay-frozen {
+        background:
+            radial-gradient(circle at top, rgba(180,210,240,0.45), transparent 60%),
+            repeating-linear-gradient(
+                to bottom,
+                rgba(220,235,250,0.25),
+                rgba(220,235,250,0.25) 2px,
+                transparent 2px,
+                transparent 5px
+            );
+        animation: frozenSnow 26s linear infinite;
+    }
+
+    @keyframes frozenSnow {
+        0% { transform: translateY(0); opacity: 0.24; }
+        50% { transform: translateY(12px); opacity: 0.3; }
+        100% { transform: translateY(-12px); opacity: 0.24; }
+    }
+
+    .overlay-tunnels {
+        background:
+            radial-gradient(circle at bottom, rgba(120,80,60,0.5), transparent 65%),
+            linear-gradient(to top, rgba(40,20,10,0.7), transparent);
+        animation: tunnelsDrift 30s linear infinite;
+    }
+
+    @keyframes tunnelsDrift {
+        0% { transform: translateX(0); opacity: 0.25; }
+        50% { transform: translateX(-10px); opacity: 0.32; }
+        100% { transform: translateX(10px); opacity: 0.25; }
+    }
+
+    .overlay-watchtower {
+        background:
+            linear-gradient(120deg, rgba(255,255,255,0.15), transparent 60%),
+            linear-gradient(300deg, rgba(255,255,200,0.2), transparent 70%);
+        animation: watchtowerWind 24s linear infinite;
+    }
+
+    @keyframes watchtowerWind {
+        0% { transform: translateX(0); opacity: 0.22; }
+        50% { transform: translateX(15px); opacity: 0.3; }
+        100% { transform: translateX(-15px); opacity: 0.22; }
+    }
+
+    .overlay-annex {
+        background:
+            radial-gradient(circle at center, rgba(120,200,80,0.4), transparent 60%),
+            repeating-linear-gradient(
+                45deg,
+                rgba(255,180,0,0.25),
+                rgba(255,180,0,0.25) 3px,
+                transparent 3px,
+                transparent 6px
+            );
+        animation: annexPulse 22s linear infinite;
+    }
+
+    @keyframes annexPulse {
+        0% { opacity: 0.22; }
+        50% { opacity: 0.34; }
+        100% { opacity: 0.22; }
+    }
+
+    .overlay-golden {
+        background:
+            radial-gradient(circle at center, rgba(255,215,120,0.5), transparent 60%),
+            radial-gradient(circle at top, rgba(255,240,200,0.35), transparent 70%);
+        animation: goldenDrift 40s linear infinite;
+    }
+
+    @keyframes goldenDrift {
+        0% { transform: translateY(0); opacity: 0.3; }
+        50% { transform: translateY(10px); opacity: 0.4; }
+        100% { transform: translateY(-10px); opacity: 0.3; }
+    }
+
+    .overlay-blackwater {
+        background:
+            radial-gradient(circle at bottom, rgba(10,40,30,0.7), transparent 65%),
+            radial-gradient(circle at top, rgba(0,0,0,0.8), transparent 70%);
+        animation: blackwaterDrift 32s linear infinite;
+    }
+
+    @keyframes blackwaterDrift {
+        0% { transform: translateY(0); opacity: 0.26; }
+        50% { transform: translateY(8px); opacity: 0.34; }
+        100% { transform: translateY(-8px); opacity: 0.26; }
+    }
+
+    .overlay-basalt {
+        background:
+            radial-gradient(circle at center, rgba(60,40,40,0.6), transparent 60%),
+            repeating-linear-gradient(
+                to bottom,
+                rgba(255,120,40,0.25),
+                rgba(255,120,40,0.25) 2px,
+                transparent 2px,
+                transparent 5px
+            );
+        animation: basaltPulse 30s linear infinite;
+    }
+
+    @keyframes basaltPulse {
+        0% { opacity: 0.24; }
+        50% { opacity: 0.34; }
+        100% { opacity: 0.24; }
+    }
+
+    .overlay-pale {
+        background:
+            radial-gradient(circle at center, rgba(80,85,90,0.7), transparent 60%),
+            linear-gradient(to bottom, rgba(50,55,60,0.7), transparent);
+        animation: paleDrift 34s linear infinite;
+    }
+
+    @keyframes paleDrift {
+        0% { transform: translateX(0); opacity: 0.26; }
+        50% { transform: translateX(10px); opacity: 0.34; }
+        100% { transform: translateX(-10px); opacity: 0.26; }
+    }
+
+    .overlay-cryo {
+        background:
+            radial-gradient(circle at top, rgba(180,230,255,0.5), transparent 60%),
+            radial-gradient(circle at bottom, rgba(80,120,160,0.5), transparent 70%);
+        animation: cryoDrift 28s linear infinite;
+    }
+
+    @keyframes cryoDrift {
+        0% { transform: translateY(0); opacity: 0.26; }
+        50% { transform: translateY(-8px); opacity: 0.34; }
+        100% { transform: translateY(8px); opacity: 0.26; }
+    }
+
+    .overlay-verdant {
+        background:
+            radial-gradient(circle at left, rgba(10,120,70,0.7), transparent 60%),
+            radial-gradient(circle at right, rgba(40,200,130,0.5), transparent 70%);
+        animation: verdantPollen 30s linear infinite;
+    }
+
+    @keyframes verdantPollen {
+        0% { transform: translate(0,0); opacity: 0.26; }
+        50% { transform: translate(-8px, 8px); opacity: 0.34; }
+        100% { transform: translate(8px, -8px); opacity: 0.26; }
+    }
+
+    /* CRIMSON VERGE overlays (extreme nodes) */
+    .overlay-glassmire {
+        background:
+            radial-gradient(circle at center, rgba(80,0,0,0.8), transparent 60%),
+            repeating-linear-gradient(135deg, rgba(180,40,40,0.35), transparent 4px);
+        animation: glassMire 26s linear infinite;
+    }
+    @keyframes glassMire {
+        0% { opacity: 0.3; }
+        50% { opacity: 0.45; }
+        100% { opacity: 0.3; }
+    }
+
+    .overlay-staticplateau {
+        background:
+            repeating-linear-gradient(
+                to right,
+                rgba(255,120,120,0.25),
+                rgba(255,120,120,0.25) 1px,
+                transparent 1px,
+                transparent 3px
+            ),
+            linear-gradient(to bottom, rgba(10,0,0,0.9), rgba(0,0,0,1));
+        animation: staticPlateau 18s linear infinite;
+    }
+    @keyframes staticPlateau {
+        0% { transform: translateX(0); opacity: 0.35; }
+        50% { transform: translateX(8px); opacity: 0.5; }
+        100% { transform: translateX(-8px); opacity: 0.35; }
+    }
+
+    .overlay-ashen {
+        background:
+            radial-gradient(circle at bottom, rgba(60,0,0,0.8), transparent 60%),
+            linear-gradient(to top, rgba(20,0,0,0.9), transparent);
+        animation: ashenZone 30s linear infinite;
+    }
+    @keyframes ashenZone {
+        0% { opacity: 0.32; }
+        50% { opacity: 0.48; }
+        100% { opacity: 0.32; }
+    }
+
+    .overlay-hinterland {
+        background:
+            radial-gradient(circle at center, rgba(90,0,0,0.8), transparent 60%),
+            radial-gradient(circle at top, rgba(30,0,0,0.9), transparent 70%);
+        animation: hinterland 32s linear infinite;
+    }
+    @keyframes hinterland {
+        0% { transform: translateY(0); opacity: 0.35; }
+        50% { transform: translateY(10px); opacity: 0.5; }
+        100% { transform: translateY(-10px); opacity: 0.35; }
+    }
+
+    .inv-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+        padding: 2px 4px;
+    }
+
+    .inv-label {
+        flex: 1;
+    }
+
+    #fullMapDiagram {
+        font-family: Consolas, monospace;
+        white-space: pre;
+        font-size: 0.85rem;
+        line-height: 1.4;
+    }
+
+    .bar-container {
+        width: 100%;
+        height: 10px;
+        background: #111;
+        border: 1px solid var(--border);
+        margin-top: 2px;
+        margin-bottom: 4px;
+    }
+
+    .bar-fill {
+        height: 100%;
+        background: linear-gradient(to right, #ff4d4d, #ffb84d);
+    }
+
+    @media (max-width: 800px) {
+        #game {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto auto auto auto;
+            height: auto;
+            overflow: visible;
+        }
+        #stats { grid-column: 1; grid-row: 1; }
+        #inventory { grid-column: 1; grid-row: 2; max-height: none; }
+        #area { grid-column: 1; grid-row: 3; }
+        #actions { grid-column: 1; grid-row: 4; }
+        #log { grid-column: 1; grid-row: 5; max-height: 200px; overflow-y: auto; }
+        .panel { padding: 8px; font-size: 0.85rem; }
+        button { padding: 10px; font-size: 0.9rem; }
+        #intro { padding: 16px; font-size: 0.9rem; }
+    }
+</style>
+</head>
+<body>
+
+<div id="intro">
+    <div id="scanwave"></div>
+    <div id="introContent"></div>
+</div>
+
+<div id="overlay">
+    <div id="overlayLayer" class="overlay-base overlay-shoreline"></div>
+</div>
+
+<div id="game">
+    <div id="stats" class="panel"></div>
+    <div id="inventory" class="panel"></div>
+    <div id="area" class="panel"></div>
+    <div id="actions" class="panel"></div>
+    <div id="log" class="panel"></div>
+</div>
+
+<div id="mapUI">
+    <div id="mapWindow">
+        <h2>SECTOR MAP</h2>
+        <div id="mapContent"></div>
+        <button onclick="closeMap()">Close Map</button>
+    </div>
+</div>
+
+<div id="fullMapUI">
+    <div id="fullMapWindow">
+        <h2>SECTOR TWO — NODE LAYOUT</h2>
+        <p>Topographic projection. ● = current node, ✦ = Golden Ridge, ■ = Crimson Verge extreme node.</p>
+        <pre id="fullMapDiagram"></pre>
+        <button onclick="closeFullMap()">Close</button>
+    </div>
+</div>
+
+<div id="craftUI">
+    <div id="craftWindow">
+        <h2>CRAFTING CONSOLE</h2>
+        <div id="craftContent"></div>
+        <button onclick="closeCraft()">Close</button>
+    </div>
+</div>
+
+<div id="useItemUI">
+    <div id="useItemWindow">
+        <h2>USE CRAFTED ITEM</h2>
+        <div id="useItemContent"></div>
+        <button onclick="closeUseItem()">Close</button>
+    </div>
+</div>
+
+<div id="gameOverUI">
+    <div id="gameOverWindow">
+        <h2>SESSION TERMINATED</h2>
+        <div id="gameOverContent"></div>
+        <button onclick="restartGame()">Restart</button>
+    </div>
+</div>
+
+<script>
+const introLines = [
+    "W.R.E.A. GLOBAL NODE // EMERGENCY ROUTING",
+    "",
+    "ALERT: BREACH DETECTED NEAR PERIMETER GATE 7",
+    "ALERT: UNAUTHORIZED SUBJECT IN RESTRICTED ZONE",
+    "",
+    "IDENTITY MATCH: BARRON, SLEDGE // FORMER TASKFORCE OPERATIVE",
+    "STATUS: NON-COMPLIANT",
+    "",
+    "DEPLOYING PURSUIT TEAMS…",
+    "ROUTE: FOREST PERIMETER → SHORELINE CORRIDOR",
+    "",
+    "…",
+    "ANOMALY SIGNATURE DETECTED",
+    "VECTOR: 14.7°",
+    "CONTAINMENT: FAILED",
+    "",
+    "SURVEILLANCE FEED: LOST",
+    "RE-ROUTING CONTROL TO LOCAL NODE…",
+    "",
+    "INITIALIZING SECTOR TWO INTERFACE…",
+    "",
+    "WELCOME, SUBJECT BARRON.",
+    "W.R.E.A. TRACE SYSTEM IS NOW ACTIVE.",
+    ""
+];
+
+function playIntro() {
+    const box = document.getElementById("introContent");
+    let index = 0;
+
+    function step() {
+        if (index >= introLines.length) {
+            let fade = 1;
+            function fadeOut() {
+                fade -= 0.02;
+                if (fade <= 0) {
+                    const intro = document.getElementById("intro");
+                    intro.style.display = "none";
+                    document.getElementById("overlay").style.display = "block";
+                    document.getElementById("game").style.display = "grid";
+
+                    pickRandomStartArea();
+                    applyTheme(state.area);
+                    applyOverlay(state.area);
+                    renderUI();
+                    log(startMessageForArea(state.area));
+                    return;
+                }
+                document.getElementById("intro").style.opacity = fade;
+                requestAnimationFrame(fadeOut);
+            }
+            requestAnimationFrame(fadeOut);
+            return;
+        }
+
+        const line = document.createElement("div");
+        line.textContent = introLines[index++];
+        box.appendChild(line);
+        box.scrollTop = box.scrollHeight;
+
+        let delay = 0;
+        function wait() {
+            delay++;
+            if (delay > 20) {
+                requestAnimationFrame(step);
+            } else {
+                requestAnimationFrame(wait);
+            }
+        }
+        requestAnimationFrame(wait);
+    }
+
+    requestAnimationFrame(step);
+}
+
+const AREAS = {
+    "Shoreline Facility Ruins": {
+        bg: "#0a1a26",
+        text: "#b8f0ff",
+        border: "#1c2f3a",
+        accent: "#d47a3c",
+        overlayClass: "overlay-shoreline"
+    },
+    "Storm Sector": {
+        bg: "#080612",
+        text: "#d0e8ff",
+        border: "#1a1a3d",
+        accent: "#4df2ff",
+        overlayClass: "overlay-storm"
+    },
+    "Ship Graveyard": {
+        bg: "#1a0f0a",
+        text: "#ffd9a6",
+        border: "#4d2b1f",
+        accent: "#ff9b3f",
+        overlayClass: "overlay-graveyard"
+    },
+    "Deep Jungle Perimeter": {
+        bg: "#04140a",
+        text: "#b9ffcf",
+        border: "#1b3d24",
+        accent: "#4cff88",
+        overlayClass: "overlay-jungle"
+    },
+    "Anomaly Ridge": {
+        bg: "#12041a",
+        text: "#f0d4ff",
+        border: "#3a124d",
+        accent: "#d46bff",
+        overlayClass: "overlay-anomaly"
+    },
+    "W.R.E.A. Listening Post 09": {
+        bg: "#0b0b10",
+        text: "#e0e0e0",
+        border: "#3a3a4d",
+        accent: "#ff4d4d",
+        overlayClass: "overlay-listening"
+    },
+    "Frozen Relay Station": {
+        bg: "#0f1822",
+        text: "#d8f0ff",
+        border: "#3a4f63",
+        accent: "#9fd8ff",
+        overlayClass: "overlay-frozen"
+    },
+    "Subterranean Access Tunnels": {
+        bg: "#120b08",
+        text: "#f0d8c0",
+        border: "#4a2b1a",
+        accent: "#ffb36b",
+        overlayClass: "overlay-tunnels"
+    },
+    "Overlook Watchtower": {
+        bg: "#101018",
+        text: "#f5f5d8",
+        border: "#3a3a50",
+        accent: "#ffe27a",
+        overlayClass: "overlay-watchtower"
+    },
+    "Quarantine Research Annex": {
+        bg: "#08140a",
+        text: "#e4ffd8",
+        border: "#2a4d2a",
+        accent: "#ffb84d",
+        overlayClass: "overlay-annex"
+    },
+    "Golden Ridge": {
+        bg: "#1a1200",
+        text: "#ffeec0",
+        border: "#80652a",
+        accent: "#ffd76a",
+        overlayClass: "overlay-golden"
+    },
+    "Blackwater Sink": {
+        bg: "#020a06",
+        text: "#a8ffe0",
+        border: "#1a3d2a",
+        accent: "#7aff3c",
+        overlayClass: "overlay-blackwater"
+    },
+    "Basalt Crater": {
+        bg: "#151010",
+        text: "#ffcf9a",
+        border: "#4a2a1a",
+        accent: "#ff8a3f",
+        overlayClass: "overlay-basalt"
+    },
+    "Pale Expanse": {
+        bg: "#2a2d30",
+        text: "#f2f5f7",
+        border: "#4a4f55",
+        accent: "#9fc7ff",
+        overlayClass: "overlay-pale"
+    },
+    "Cryoforming Lab 12": {
+        bg: "#07121c",
+        text: "#e0f6ff",
+        border: "#2a4a60",
+        accent: "#7fd4ff",
+        overlayClass: "overlay-cryo"
+    },
+    "Verdant Relay Outpost": {
+        bg: "#032016",
+        text: "#e8fff4",
+        border: "#0f3b2a",
+        accent: "#7affc6",
+        overlayClass: "overlay-verdant"
+    },
+    /* CRIMSON VERGE nodes */
+    "Glass Mire": {
+        bg: "#140000",
+        text: "#ffeaea",
+        border: "#4a1010",
+        accent: "#ff4d4d",
+        overlayClass: "overlay-glassmire"
+    },
+    "Static Plateau": {
+        bg: "#0b0000",
+        text: "#ffeaea",
+        border: "#4a1010",
+        accent: "#ff4d4d",
+        overlayClass: "overlay-staticplateau"
+    },
+    "Ashen Exclusion Zone": {
+        bg: "#150000",
+        text: "#ffeaea",
+        border: "#4a1010",
+        accent: "#ff4d4d",
+        overlayClass: "overlay-ashen"
+    },
+    "Hinterland Relay Fault": {
+        bg: "#120000",
+        text: "#ffeaea",
+        border: "#4a1010",
+        accent: "#ff4d4d",
+        overlayClass: "overlay-hinterland"
+    }
+};
+
+function applyTheme(areaName) {
+    const theme = AREAS[areaName];
+    document.documentElement.style.setProperty("--bg", theme.bg);
+    document.documentElement.style.setProperty("--text", theme.text);
+    document.documentElement.style.setProperty("--border", theme.border);
+    document.documentElement.style.setProperty("--accent", theme.accent);
+}
+
+function applyOverlay(areaName) {
+    const theme = AREAS[areaName];
+    const layer = document.getElementById("overlayLayer");
+    layer.className = "overlay-base " + theme.overlayClass;
+}
+
+const MAP = {
+    "Shoreline Facility Ruins": {
+        "Storm Sector": 15,
+        "Ship Graveyard": 10,
+        "Deep Jungle Perimeter": 12,
+        "Blackwater Sink": 12
+    },
+    "Storm Sector": {
+        "Shoreline Facility Ruins": 15,
+        "Anomaly Ridge": 18,
+        "Frozen Relay Station": 20,
+        "Pale Expanse": 14,
+        "Static Plateau": 18
+    },
+    "Ship Graveyard": {
+        "Shoreline Facility Ruins": 10,
+        "W.R.E.A. Listening Post 09": 18,
+        "Subterranean Access Tunnels": 12,
+        "Blackwater Sink": 8,
+        "Glass Mire": 18
+    },
+    "Deep Jungle Perimeter": {
+        "Shoreline Facility Ruins": 12,
+        "Anomaly Ridge": 16,
+        "Basalt Crater": 10,
+        "Verdant Relay Outpost": 14,
+        "Ashen Exclusion Zone": 18
+    },
+    "Anomaly Ridge": {
+        "Deep Jungle Perimeter": 16,
+        "Storm Sector": 18,
+        "W.R.E.A. Listening Post 09": 20,
+        "Basalt Crater": 10,
+        "Hinterland Relay Fault": 20
+    },
+    "W.R.E.A. Listening Post 09": {
+        "Ship Graveyard": 18,
+        "Anomaly Ridge": 20
+    },
+    "Frozen Relay Station": {
+        "Storm Sector": 20,
+        "Overlook Watchtower": 10,
+        "Cryoforming Lab 12": 10
+    },
+    "Overlook Watchtower": {
+        "Frozen Relay Station": 10,
+        "Quarantine Research Annex": 12,
+        "Cryoforming Lab 12": 10
+    },
+    "Quarantine Research Annex": {
+        "Overlook Watchtower": 12,
+        "Frozen Relay Station": 18,
+        "Verdant Relay Outpost": 10
+    },
+    "Subterranean Access Tunnels": {
+        "Ship Graveyard": 12
+    },
+    "Blackwater Sink": {
+        "Ship Graveyard": 8,
+        "Shoreline Facility Ruins": 12,
+        "Pale Expanse": 10
+    },
+    "Basalt Crater": {
+        "Deep Jungle Perimeter": 10,
+        "Anomaly Ridge": 10
+    },
+    "Pale Expanse": {
+        "Storm Sector": 14,
+        "Blackwater Sink": 10
+    },
+    "Cryoforming Lab 12": {
+        "Frozen Relay Station": 10,
+        "Overlook Watchtower": 10
+    },
+    "Verdant Relay Outpost": {
+        "Deep Jungle Perimeter": 14,
+        "Quarantine Research Annex": 10
+    },
+    "Golden Ridge": {},
+    "Glass Mire": {
+        "Ship Graveyard": 18,
+        "Static Plateau": 10,
+        "Ashen Exclusion Zone": 10
+    },
+    "Static Plateau": {
+        "Storm Sector": 18,
+        "Glass Mire": 10,
+        "Hinterland Relay Fault": 10
+    },
+    "Ashen Exclusion Zone": {
+        "Deep Jungle Perimeter": 18,
+        "Glass Mire": 10,
+        "Hinterland Relay Fault": 10
+    },
+    "Hinterland Relay Fault": {
+        "Anomaly Ridge": 20,
+        "Static Plateau": 10,
+        "Ashen Exclusion Zone": 10
+    }
+};
+
+let baseState = () => ({
+    area: "Shoreline Facility Ruins",
+    lastAreaBeforeGolden: null,
+    shelterByArea: {
+        "Shoreline Facility Ruins": 0,
+        "Storm Sector": 0,
+        "Ship Graveyard": 0,
+        "Deep Jungle Perimeter": 0,
+        "Anomaly Ridge": 0,
+        "W.R.E.A. Listening Post 09": 0,
+        "Frozen Relay Station": 0,
+        "Subterranean Access Tunnels": 0,
+        "Overlook Watchtower": 0,
+        "Quarantine Research Annex": 0,
+        "Golden Ridge": 0,
+        "Blackwater Sink": 0,
+        "Basalt Crater": 0,
+        "Pale Expanse": 0,
+        "Cryoforming Lab 12": 0,
+        "Verdant Relay Outpost": 0,
+        "Glass Mire": 0,
+        "Static Plateau": 0,
+        "Ashen Exclusion Zone": 0,
+        "Hinterland Relay Fault": 0
+    },
+    structuresByArea: {
+        "Shoreline Facility Ruins": { purifier: false, cooker: false },
+        "Storm Sector": { purifier: false, cooker: false },
+        "Ship Graveyard": { purifier: false, cooker: false },
+        "Deep Jungle Perimeter": { purifier: false, cooker: false },
+        "Anomaly Ridge": { purifier: false, cooker: false },
+        "W.R.E.A. Listening Post 09": { purifier: false, cooker: false },
+        "Frozen Relay Station": { purifier: false, cooker: false },
+        "Subterranean Access Tunnels": { purifier: false, cooker: false },
+        "Overlook Watchtower": { purifier: false, cooker: false },
+        "Quarantine Research Annex": { purifier: false, cooker: false },
+        "Golden Ridge": { purifier: false, cooker: false },
+        "Blackwater Sink": { purifier: false, cooker: false },
+        "Basalt Crater": { purifier: false, cooker: false },
+        "Pale Expanse": { purifier: false, cooker: false },
+        "Cryoforming Lab 12": { purifier: false, cooker: false },
+        "Verdant Relay Outpost": { purifier: false, cooker: false },
+        "Glass Mire": { purifier: false, cooker: false },
+        "Static Plateau": { purifier: false, cooker: false },
+        "Ashen Exclusion Zone": { purifier: false, cooker: false },
+        "Hinterland Relay Fault": { purifier: false, cooker: false }
+    },
+    stats: {
+        health: 100,
+        energy: 50,
+        hunger: 80,
+        thirst: 80,
+        heat: 0
+    },
+    heatByArea: {
+        "Shoreline Facility Ruins": 0,
+        "Storm Sector": 0,
+        "Ship Graveyard": 0,
+        "Deep Jungle Perimeter": 0,
+        "Anomaly Ridge": 0,
+        "W.R.E.A. Listening Post 09": 0,
+        "Frozen Relay Station": 0,
+        "Subterranean Access Tunnels": 0,
+        "Overlook Watchtower": 0,
+        "Quarantine Research Annex": 0,
+        "Golden Ridge": 0,
+        "Blackwater Sink": 0,
+        "Basalt Crater": 0,
+        "Pale Expanse": 0,
+        "Cryoforming Lab 12": 0,
+        "Verdant Relay Outpost": 0,
+        "Glass Mire": 0,
+        "Static Plateau": 0,
+        "Ashen Exclusion Zone": 0,
+        "Hinterland Relay Fault": 0
+    },
+    materials: {
+        wood: 0,
+        scrap: 0,
+        fabric: 0,
+        electronics: 0,
+        anomaly: 0
+    },
+    crafted: {
+        rope: 0,
+        metalBracket: 0,
+        woodPlank: 0,
+        reinforcedPlate: 0,
+        insulatedWrap: 0,
+        anomalyStabilizer: 0,
+        signalBeacon: 0,
+        waterRation: 0,
+        basicMeal: 0,
+        boostWood: 0,
+        boostScrap: 0,
+        boostFabric: 0,
+        boostElectronics: 0,
+        boostAnomaly: 0
+    },
+    status: {
+        insulatedTurns: 0,
+        reinforcedPlateActive: false,
+        boostedSearch: false,
+        metalBracketReady: false,
+        anomalyStabilizerReady: false,
+        resourceBoost: null,
+        resourceBoostHours: 0
+    },
+    time: {
+        day: 1,
+        hour: 6,
+        totalHours: 0
+    },
+    starvation: {
+        hoursZeroHunger: 0,
+        hoursZeroThirst: 0
+    },
+    statsSummary: {
+        totalEncounters: 0,
+        totalCrafted: 0,
+        totalMaterialsGained: 0
+    }
+});
+
+let state = baseState();
+let inventoryOrder = ["wood", "scrap", "fabric", "electronics", "anomaly"];
+
+function advanceTime(hours) {
+    for (let i = 0; i < hours; i++) {
+        state.time.totalHours += 1;
+        state.time.hour += 1;
+        if (state.time.hour >= 24) {
+            state.time.hour -= 24;
+            state.time.day += 1;
+        }
+        hourlySurvivalTick();
+    }
+}
+
+function hourlySurvivalTick() {
+    if (state.time.totalHours % 2 === 0) {
+        state.stats.hunger = Math.max(0, state.stats.hunger - 1);
+        state.stats.thirst = Math.max(0, state.stats.thirst - 1);
+    }
+
+    let healthLoss = 0;
+
+    if (state.stats.hunger === 0) {
+        state.starvation.hoursZeroHunger += 1;
+        const hungerStage = Math.floor(state.starvation.hoursZeroHunger / 8);
+        healthLoss += 1 + hungerStage;
+    } else {
+        state.starvation.hoursZeroHunger = 0;
+    }
+
+    if (state.stats.thirst === 0) {
+        state.starvation.hoursZeroThirst += 1;
+        const thirstStage = Math.floor(state.starvation.hoursZeroThirst / 8);
+        healthLoss += 1 + thirstStage;
+    } else {
+        state.starvation.hoursZeroThirst = 0;
+    }
+
+    if (healthLoss > 0) {
+        state.stats.health = Math.max(0, state.stats.health - healthLoss);
+        log(`Your body strains under deprivation. Health -${healthLoss}.`);
+    }
+
+    if (state.status.resourceBoost && state.status.resourceBoostHours > 0) {
+        state.status.resourceBoostHours -= 1;
+        if (state.status.resourceBoostHours === 0) {
+            log("The targeted resource beacon flickers out.");
+            state.status.resourceBoost = null;
+        }
+    }
+
+    tickHeat();
+    checkDeath();
+}
+
+function pickRandomStartArea() {
+    const weighted = [
+        "Shoreline Facility Ruins",
+        "Shoreline Facility Ruins",
+        "Deep Jungle Perimeter",
+        "Deep Jungle Perimeter",
+        "Ship Graveyard",
+        "Ship Graveyard",
+        "Subterranean Access Tunnels",
+        "Storm Sector",
+        "Storm Sector",
+        "W.R.E.A. Listening Post 09",
+        "Frozen Relay Station",
+        "Overlook Watchtower",
+        "Anomaly Ridge",
+        "Quarantine Research Annex",
+        "Blackwater Sink",
+        "Basalt Crater",
+        "Pale Expanse",
+        "Cryoforming Lab 12",
+        "Verdant Relay Outpost"
+    ];
+    const idx = Math.floor(Math.random() * weighted.length);
+    state.area = weighted[idx];
+    state.stats.heat = 0;
+    for (let a in state.heatByArea) state.heatByArea[a] = 0;
+}
+
+function startMessageForArea(area) {
+    switch(area) {
+        case "Shoreline Facility Ruins":
+            return "You wake to the hiss of static and the crash of distant waves against rusted hulls.";
+        case "Storm Sector":
+            return "You jolt awake under a sky torn by lightning, the air charged and unstable.";
+        case "Ship Graveyard":
+            return "You come to among twisted metal and half-buried hulls, the sand whispering around you.";
+        case "Deep Jungle Perimeter":
+            return "You surface from blackout to the sound of insects and the press of wet, breathing foliage.";
+        case "Anomaly Ridge":
+            return "You snap awake on fractured ground, reality bending at the edges of your vision.";
+        case "W.R.E.A. Listening Post 09":
+            return "You regain consciousness beneath cold towers and silent dishes, watched by unseen instruments.";
+        case "Frozen Relay Station":
+            return "You wake beneath dead antennae and frozen cabling, breath fogging in the air.";
+        case "Subterranean Access Tunnels":
+            return "You come to in a narrow tunnel, the air thick with dust and old machinery.";
+        case "Overlook Watchtower":
+            return "You steady yourself against a cracked railing, the sector sprawling below in fractured lines.";
+        case "Quarantine Research Annex":
+            return "You wake to the dim pulse of hazard lights and the smell of stale disinfectant.";
+        case "Golden Ridge":
+            return "You step into a place that should not exist. The air hums with quiet, golden resonance.";
+        case "Blackwater Sink":
+            return "You wake to the smell of oil and salt, black water lapping at drowned metal.";
+        case "Basalt Crater":
+            return "You come to on fractured stone, the ground humming with buried heat.";
+        case "Pale Expanse":
+            return "You wake in a muted horizon, shapes barely visible through drifting dust and static haze.";
+        case "Cryoforming Lab 12":
+            return "You jolt awake on a frost-slick floor, coolant vapor drifting through dead machinery.";
+        case "Verdant Relay Outpost":
+            return "You surface beneath humming relay towers and bioluminescent growth, the air thick with green light.";
+        case "Glass Mire":
+            return "You wake knee-deep in dark reflective sludge, red light smearing across every surface.";
+        case "Static Plateau":
+            return "You come to on an exposed shelf where the air itself crackles in red interference.";
+        case "Ashen Exclusion Zone":
+            return "You wake in a field of dark ash and half-buried markers, the sky a dull red smear.";
+        case "Hinterland Relay Fault":
+            return "You surface near a broken relay spine, its red warning lights blinking out of sync with the sky.";
+        default:
+            return "You come to your senses in an unfamiliar sector.";
+    }
+}
+
+function log(msg) {
+    const logBox = document.getElementById("log");
+    if (!logBox) return;
+    const entry = document.createElement("div");
+    entry.textContent = "> " + msg;
+    logBox.appendChild(entry);
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
+function getShelterLevel(area) {
+    return state.shelterByArea[area] || 0;
+}
+
+function isExtremeArea(area) {
+    return (
+        area === "Glass Mire" ||
+        area === "Static Plateau" ||
+        area === "Ashen Exclusion Zone" ||
+        area === "Hinterland Relay Fault"
+    );
+}
+
+function tickHeat() {
+    const current = state.area;
+    if (current === "Golden Ridge") {
+        state.stats.heat = 0;
+        state.heatByArea[current] = 0;
+        return;
+    }
+
+    const level = getShelterLevel(current);
+    let delta = 1;
+
+    if (isExtremeArea(current)) {
+        delta += 1.0;
+    }
+
+    if (level === 1) delta = 0.8;
+    else if (level === 2) delta = 0.6;
+    else if (level === 3) delta = 0.3;
+    else if (level === 4) delta = 0.0;
+    else if (level === 5) delta = -0.5;
+    else if (level >= 6 && isExtremeArea(current)) delta = -1.0;
+
+    if (current === "Cryoforming Lab 12") {
+        delta -= 0.5;
+    }
+    if (current === "Basalt Crater") {
+        delta += 0.5;
+    }
+    if (current === "Pale Expanse") {
+        delta += (Math.random() < 0.5 ? 0.5 : -0.5);
+    }
+
+    if (state.status.insulatedTurns > 0 && delta > 0) {
+        delta *= 0.5;
+    }
+
+    state.heatByArea[current] = Math.max(0, Math.min(100, state.heatByArea[current] + delta));
+    state.stats.heat = state.heatByArea[current];
+
+    if (state.status.insulatedTurns > 0) {
+        state.status.insulatedTurns -= 1;
+        if (state.status.insulatedTurns === 0) {
+            log("The effect of the insulated wrap fades.");
+        }
+    }
+
+    checkDeath();
+    checkVictory();
+}
+
+function requiredMaxShelterLevel(area) {
+    return isExtremeArea(area) ? 6 : 5;
+}
+
+function countFullyBuiltShelters() {
+    let count = 0;
+    for (let area in state.shelterByArea) {
+        const required = requiredMaxShelterLevel(area);
+        if (state.shelterByArea[area] >= required) count++;
+    }
+    return count;
+}
+
+function allSheltersMaxed() {
+    for (let area in state.shelterByArea) {
+        const required = requiredMaxShelterLevel(area);
+        if (state.shelterByArea[area] < required) return false;
+    }
+    return true;
+}
+
+function triggerGameOver(reason, isVictory = false) {
+    const gameOverBox = document.getElementById("gameOverContent");
+    const totalLocations = Object.keys(state.shelterByArea).length;
+    const fullyBuilt = countFullyBuiltShelters();
+
+    let html = "";
+    if (isVictory) {
+        html += `<p>${reason}</p>`;
+        html += `<p>Sector Two falls quiet. Every outpost stands reinforced, even within the Crimson Verge.</p>`;
+        html += `<p>The trace grid flags the region as STABLE. For the first time since the breach, the static recedes.</p>`;
+        html += `<p>Somewhere beyond the perimeter, other sectors wait.</p>`;
+    } else {
+        html += `<p>${reason}</p>`;
+    }
+    html += `<hr>`;
+    html += `<b>SESSION STATISTICS</b><br>`;
+    html += `Days Survived: ${state.time.day}<br>`;
+    html += `Total Hours Survived: ${state.time.totalHours}<br>`;
+    html += `Total Encounters: ${state.statsSummary.totalEncounters}<br>`;
+    html += `Total Materials Gained: ${state.statsSummary.totalMaterialsGained}<br>`;
+    html += `Total Items Crafted: ${state.statsSummary.totalCrafted}<br>`;
+    html += `Shelters Fully Built: ${fullyBuilt} / ${totalLocations}<br>`;
+
+    gameOverBox.innerHTML = html;
+    document.getElementById("gameOverUI").style.display = "flex";
+}
+
+function checkDeath() {
+    if (state.stats.health <= 0) {
+        triggerGameOver("Your body fails under the strain of deprivation.");
+    } else if (state.stats.heat >= 100) {
+        triggerGameOver("W.R.E.A. triangulates your position. Retrieval teams arrive before you can move.");
+    }
+}
+
+function checkVictory() {
+    if (allSheltersMaxed()) {
+        triggerGameOver("All shelters in Sector Two, including the Crimson Verge, are fully reinforced.", true);
+    }
+}
+
+function restartGame() {
+    document.getElementById("gameOverUI").style.display = "none";
+    const logBox = document.getElementById("log");
+    if (logBox) logBox.innerHTML = "";
+    state = baseState();
+    pickRandomStartArea();
+    applyTheme(state.area);
+    applyOverlay(state.area);
+    renderUI();
+    log("SYSTEM RESET. New session initialized.");
+    log(startMessageForArea(state.area));
+}
+
+function addMaterial(type, amount) {
+    if (!state.materials[type]) state.materials[type] = 0;
+    state.materials[type] += amount;
+    state.statsSummary.totalMaterialsGained += amount;
+    renderInventory();
+}
+
+function performScavengeLoot() {
+    const roll = Math.random();
+    let found = [];
+
+    let boosted = state.status.boostedSearch;
+    if (boosted) {
+        state.status.boostedSearch = false;
+    }
+
+    const area = state.area;
+
+    let woodBias = 0;
+    let scrapBias = 0;
+    let fabricBias = 0;
+    let electronicsBias = 0;
+    let anomalyBias = 0;
+
+    if (area === "Blackwater Sink") {
+        electronicsBias += 0.05;
+        scrapBias += 0.05;
+    }
+    if (area === "Basalt Crater") {
+        scrapBias += 0.1;
+        anomalyBias += 0.05;
+    }
+    if (area === "Pale Expanse") {
+        woodBias -= 0.05;
+        scrapBias -= 0.05;
+    }
+    if (area === "Cryoforming Lab 12") {
+        fabricBias += 0.05;
+        electronicsBias += 0.05;
+    }
+    if (area === "Verdant Relay Outpost") {
+        woodBias += 0.1;
+        fabricBias += 0.05;
+    }
+
+    if (state.status.resourceBoost === "wood") woodBias += 0.2;
+    if (state.status.resourceBoost === "scrap") scrapBias += 0.2;
+    if (state.status.resourceBoost === "fabric") fabricBias += 0.2;
+    if (state.status.resourceBoost === "electronics") electronicsBias += 0.2;
+    if (state.status.resourceBoost === "anomaly") anomalyBias += 0.2;
+
+    let baseCommon = boosted ? 0.75 : 0.6;
+    let baseUncommon = boosted ? 0.95 : 0.9;
+    let baseRare = boosted ? 0.99 : 0.98;
+
+    if (roll < baseCommon + woodBias + scrapBias) {
+        const type = Math.random() < 0.5 ? "wood" : "scrap";
+        const amt = 1 + Math.floor(Math.random() * 2);
+        addMaterial(type, amt);
+        found.push(`${amt} ${type}`);
+    } else if (roll < baseUncommon + fabricBias) {
+        const amt = 1;
+        addMaterial("fabric", amt);
+        found.push(`${amt} fabric`);
+    } else if (roll < baseRare + electronicsBias) {
+        const amt = 1;
+        addMaterial("electronics", amt);
+        found.push(`${amt} electronics`);
+    } else {
+        if (area === "Anomaly Ridge" || area === "Quarantine Research Annex" || area === "Basalt Crater" || area === "Hinterland Relay Fault") {
+            addMaterial("anomaly", 1);
+            found.push("1 anomaly fragment");
+        }
+    }
+
+    if (found.length > 0) {
+        log("You scavenge the area and recover: " + found.join(", ") + ".");
+    } else {
+        log("You scavenge the area but find nothing useful.");
+    }
+}
+
+const CRAFT_RECIPES = [
+    {
+        id: "rope",
+        name: "Rope",
+        desc: "Improvised rope. Useful for securing safer paths.",
+        cost: { fabric: 2 }
+    },
+    {
+        id: "metalBracket",
+        name: "Metal Bracket",
+        desc: "Reinforced scrap assembly. Helps with shelter structure.",
+        cost: { scrap: 2 }
+    },
+    {
+        id: "woodPlank",
+        name: "Wood Plank",
+        desc: "Cut and shaped wood. Helps reduce local trace.",
+        cost: { wood: 2 }
+    },
+    {
+        id: "reinforcedPlate",
+        name: "Reinforced Plate",
+        desc: "Scrap and electronics fused into a stable plate.",
+        cost: { scrap: 2, electronics: 1 }
+    },
+    {
+        id: "insulatedWrap",
+        name: "Insulated Wrap",
+        desc: "Fabric and electronics woven into a trace-dampening wrap.",
+        cost: { fabric: 2, electronics: 1 }
+    },
+    {
+        id: "anomalyStabilizer",
+        name: "Anomaly Stabilizer",
+        desc: "A crude device to buffer anomaly interference.",
+        cost: { anomaly: 1, electronics: 2 }
+    },
+    {
+        id: "signalBeacon",
+        name: "Signal Beacon",
+        desc: "A general beacon that slightly improves your next search.",
+        cost: { electronics: 2, scrap: 1 }
+    },
+    {
+        id: "boostWood",
+        name: "Wood Locator Beacon",
+        desc: "Temporarily increases the chance of finding wood.",
+        cost: { electronics: 1, scrap: 1 }
+    },
+    {
+        id: "boostScrap",
+        name: "Scrap Locator Beacon",
+        desc: "Temporarily increases the chance of finding scrap.",
+        cost: { electronics: 1, scrap: 1 }
+    },
+    {
+        id: "boostFabric",
+        name: "Fabric Locator Beacon",
+        desc: "Temporarily increases the chance of finding fabric.",
+        cost: { electronics: 1, scrap: 1 }
+    },
+    {
+        id: "boostElectronics",
+        name: "Electronics Locator Beacon",
+        desc: "Temporarily increases the chance of finding electronics.",
+        cost: { electronics: 2 }
+    },
+    {
+        id: "boostAnomaly",
+        name: "Anomaly Locator Beacon",
+        desc: "Temporarily increases the chance of anomaly fragments.",
+        cost: { electronics: 2, scrap: 1 }
+    }
+];
+
+function canAfford(cost) {
+    for (let key in cost) {
+        if ((state.materials[key] || 0) < cost[key]) return false;
+    }
+    return true;
+}
+
+function payCost(cost) {
+    for (let key in cost) {
+        state.materials[key] -= cost[key];
+        if (state.materials[key] < 0) state.materials[key] = 0;
+    }
+}
+
+function craftItem(id) {
+    const recipe = CRAFT_RECIPES.find(r => r.id === id);
+    if (!recipe) return;
+
+    if (!canAfford(recipe.cost)) {
+        log("You don't have the materials to craft " + recipe.name + ".");
+        return;
+    }
+
+    payCost(recipe.cost);
+    if (!state.crafted[id]) state.crafted[id] = 0;
+    state.crafted[id] += 1;
+    state.statsSummary.totalCrafted += 1;
+
+    state.stats.energy = Math.max(0, state.stats.energy - 2);
+    advanceTime(1);
+
+    log("You craft: " + recipe.name + ".");
+    renderUI();
+    openCraft();
+}
+
+function buildPurifier() {
+    const area = state.area;
+    const s = state.structuresByArea[area];
+    if (s.purifier) {
+        log("A water purifier is already operating here.");
+        return;
+    }
+
+    const cost = { scrap: 3, electronics: 2 };
+    if (!canAfford(cost)) {
+        log("You don't have the materials to build a water purifier here.");
+        return;
+    }
+
+    if (state.stats.energy < 10) {
+        log("You don't have the energy to assemble a purifier right now.");
+        return;
+    }
+
+    payCost(cost);
+    state.stats.energy = Math.max(0, state.stats.energy - 10);
+    advanceTime(3);
+
+    s.purifier = true;
+    log("You assemble a crude water purifier. This location can now produce water rations.");
+    renderUI();
+    openCraft();
+}
+
+function buildCooker() {
+    const area = state.area;
+    const s = state.structuresByArea[area];
+    if (s.cooker) {
+        log("A cooker is already set up here.");
+        return;
+    }
+
+    const cost = { wood: 3, scrap: 1, fabric: 1 };
+    if (!canAfford(cost)) {
+        log("You don't have the materials to build a cooker here.");
+        return;
+    }
+
+    if (state.stats.energy < 10) {
+        log("You don't have the energy to assemble a cooker right now.");
+        return;
+    }
+
+    payCost(cost);
+    state.stats.energy = Math.max(0, state.stats.energy - 10);
+    advanceTime(3);
+
+    s.cooker = true;
+    log("You construct a makeshift cooker. This location can now produce basic meals.");
+    renderUI();
+    openCraft();
+}
+
+function craftWaterRation() {
+    const area = state.area;
+    const s = state.structuresByArea[area];
+    if (!s.purifier) {
+        log("You need a water purifier here to produce water rations.");
+        return;
+    }
+
+    const cost = { scrap: 1 };
+    if (!canAfford(cost)) {
+        log("You don't have the materials to craft a water ration.");
+        return;
+    }
+
+    payCost(cost);
+    state.crafted.waterRation += 1;
+    state.statsSummary.totalCrafted += 1;
+
+    state.stats.energy = Math.max(0, state.stats.energy - 2);
+    advanceTime(1);
+
+    log("You process a small batch of water into a ration.");
+    renderUI();
+    openCraft();
+}
+
+function craftBasicMeal() {
+    const area = state.area;
+    const s = state.structuresByArea[area];
+    if (!s.cooker) {
+        log("You need a cooker here to prepare basic meals.");
+        return;
+    }
+
+    const cost = { wood: 1, fabric: 1 };
+    if (!canAfford(cost)) {
+        log("You don't have the materials to craft a basic meal.");
+        return;
+    }
+
+    payCost(cost);
+    state.crafted.basicMeal += 1;
+    state.statsSummary.totalCrafted += 1;
+
+    state.stats.energy = Math.max(0, state.stats.energy - 2);
+    advanceTime(1);
+
+    log("You prepare a basic meal from what you have.");
+    renderUI();
+    openCraft();
+}
+
+function useCraftedItem(id) {
+    if (!state.crafted[id] || state.crafted[id] <= 0) {
+        log("You don't have any of that item to use.");
+        return;
+    }
+
+    switch(id) {
+        case "rope":
+            {
+                const before = state.stats.energy;
+                state.stats.energy = Math.min(100, state.stats.energy + 2);
+                const gained = state.stats.energy - before;
+                log(`You secure a safer route with rope. Energy +${gained}.`);
+            }
+            break;
+        case "metalBracket":
+            log("You set aside a metal bracket to reinforce your next shelter work.");
+            state.status.metalBracketReady = true;
+            break;
+        case "woodPlank":
+            {
+                const beforeHeat = state.stats.heat;
+                state.stats.heat = Math.max(0, state.stats.heat - 3);
+                state.heatByArea[state.area] = state.stats.heat;
+                const reduced = beforeHeat - state.stats.heat;
+                log(`You brace weak points with wood planks. Trace -${reduced}.`);
+            }
+            break;
+        case "reinforcedPlate":
+            state.status.reinforcedPlateActive = true;
+            log("You brace yourself with a reinforced plate. The next minor impact will be absorbed.");
+            break;
+        case "insulatedWrap":
+            state.status.insulatedTurns = 3;
+            log("You wrap yourself in insulated material. Trace gain will be reduced for a short time.");
+            break;
+        case "anomalyStabilizer":
+            state.status.anomalyStabilizerReady = true;
+            log("You arm an anomaly stabilizer. The next anomaly disturbance will be dampened.");
+            break;
+        case "signalBeacon":
+            state.status.boostedSearch = true;
+            log("You deploy a general signal beacon. Your next search is more likely to find useful materials.");
+            break;
+        case "boostWood":
+            state.status.resourceBoost = "wood";
+            state.status.resourceBoostHours = 6;
+            log("You deploy a wood locator beacon. Wood will be easier to find for a short time.");
+            break;
+        case "boostScrap":
+            state.status.resourceBoost = "scrap";
+            state.status.resourceBoostHours = 6;
+            log("You deploy a scrap locator beacon. Scrap will be easier to find for a short time.");
+            break;
+        case "boostFabric":
+            state.status.resourceBoost = "fabric";
+            state.status.resourceBoostHours = 6;
+            log("You deploy a fabric locator beacon. Fabric will be easier to find for a short time.");
+            break;
+        case "boostElectronics":
+            state.status.resourceBoost = "electronics";
+            state.status.resourceBoostHours = 6;
+            log("You deploy an electronics locator beacon. Electronics will be easier to find for a short time.");
+            break;
+        case "boostAnomaly":
+            state.status.resourceBoost = "anomaly";
+            state.status.resourceBoostHours = 6;
+            log("You deploy an anomaly locator beacon. Anomaly fragments will be easier to find for a short time.");
+            break;
+        case "waterRation":
+            {
+                const before = state.stats.thirst;
+                state.stats.thirst = Math.min(100, state.stats.thirst + 20);
+                const gained = state.stats.thirst - before;
+                log(`You drink a water ration. Thirst +${gained}.`);
+            }
+            break;
+        case "basicMeal":
+            {
+                const before = state.stats.hunger;
+                state.stats.hunger = Math.min(100, state.stats.hunger + 20);
+                const gained = state.stats.hunger - before;
+                log(`You eat a basic meal. Hunger +${gained}.`);
+            }
+            break;
+    }
+
+    state.crafted[id] -= 1;
+    if (state.crafted[id] < 0) state.crafted[id] = 0;
+    renderUI();
+    openUseItem();
+}
+
+function openCraft() {
+    const box = document.getElementById("craftContent");
+    const area = state.area;
+    const s = state.structuresByArea[area];
+    let html = "";
+
+    html += `<p>Available recipes and structures:</p>`;
+
+    CRAFT_RECIPES.forEach(r => {
+        let costText = "";
+        for (let k in r.cost) {
+            const label = k.charAt(0).toUpperCase() + k.slice(1);
+            costText += `${label}: ${r.cost[k]} `;
+        }
+        const disabled = canAfford(r.cost) ? "" : "disabled";
+        html += `
+            <div style="margin-bottom:10px;">
+                <b>${r.name}</b><br>
+                <span style="font-size:0.85rem; opacity:0.8;">${r.desc}</span><br>
+                <span style="font-size:0.85rem;">Cost: ${costText}</span><br>
+                <button ${disabled} onclick="craftItem('${r.id}')">Craft</button>
+            </div>
+        `;
+    });
+
+    html += `<hr><b>Local Infrastructure</b><br>`;
+
+    if (!s.purifier) {
+        const cost = { scrap: 3, electronics: 2 };
+        let costText = "";
+        for (let k in cost) {
+            const label = k.charAt(0).toUpperCase() + k.slice(1);
+            costText += `${label}: ${cost[k]} `;
+        }
+        const disabled = canAfford(cost) && state.stats.energy >= 10 ? "" : "disabled";
+        html += `
+            <div style="margin-bottom:10px;">
+                <b>Build Water Purifier</b><br>
+                <span style="font-size:0.85rem; opacity:0.8;">Allows crafting of water rations at this location.</span><br>
+                <span style="font-size:0.85rem;">Cost: ${costText}</span><br>
+                <button ${disabled} onclick="buildPurifier()">Build Purifier</button>
+            </div>
+        `;
+    } else {
+        const cost = { scrap: 1 };
+        let costText = "";
+        for (let k in cost) {
+            const label = k.charAt(0).toUpperCase() + k.slice(1);
+            costText += `${label}: ${cost[k]} `;
+        }
+        const disabled = canAfford(cost) && state.stats.energy >= 2 ? "" : "disabled";
+        html += `
+            <div style="margin-bottom:10px;">
+                <b>Craft Water Ration</b><br>
+                <span style="font-size:0.85rem; opacity:0.8;">Restores thirst when consumed.</span><br>
+                <span style="font-size:0.85rem;">Cost: ${costText}</span><br>
+                <button ${disabled} onclick="craftWaterRation()">Craft Water Ration</button>
+            </div>
+        `;
+    }
+
+    if (!s.cooker) {
+        const cost = { wood: 3, scrap: 1, fabric: 1 };
+        let costText = "";
+        for (let k in cost) {
+            const label = k.charAt(0).toUpperCase() + k.slice(1);
+            costText += `${label}: ${cost[k]} `;
+        }
+        const disabled = canAfford(cost) && state.stats.energy >= 10 ? "" : "disabled";
+        html += `
+            <div style="margin-bottom:10px;">
+                <b>Build Cooker</b><br>
+                <span style="font-size:0.85rem; opacity:0.8;">Allows crafting of basic meals at this location.</span><br>
+                <span style="font-size:0.85rem;">Cost: ${costText}</span><br>
+                <button ${disabled} onclick="buildCooker()">Build Cooker</button>
+            </div>
+        `;
+    } else {
+        const cost = { wood: 1, fabric: 1 };
+        let costText = "";
+        for (let k in cost) {
+            const label = k.charAt(0).toUpperCase() + k.slice(1);
+            costText += `${label}: ${cost[k]} `;
+        }
+        const disabled = canAfford(cost) && state.stats.energy >= 2 ? "" : "disabled";
+        html += `
+            <div style="margin-bottom:10px;">
+                <b>Craft Basic Meal</b><br>
+                <span style="font-size:0.85rem; opacity:0.8;">Restores hunger when consumed.</span><br>
+                <span style="font-size:0.85rem;">Cost: ${costText}</span><br>
+                <button ${disabled} onclick="craftBasicMeal()">Craft Basic Meal</button>
+            </div>
+        `;
+    }
+
+    box.innerHTML = html;
+    document.getElementById("craftUI").style.display = "flex";
+}
+
+function closeCraft() {
+    document.getElementById("craftUI").style.display = "none";
+}
+
+function openUseItem() {
+    const box = document.getElementById("useItemContent");
+    let html = "";
+
+    const craftedKeys = Object.keys(state.crafted).filter(k => state.crafted[k] > 0);
+    if (craftedKeys.length === 0) {
+        html += `<i>No crafted items available to use.</i>`;
+    } else {
+        craftedKeys.forEach(k => {
+            const amount = state.crafted[k];
+            const label = k
+                .replace(/([A-Z])/g, " $1")
+                .replace(/^./, c => c.toUpperCase());
+            html += `
+                <div style="margin-bottom:6px;">
+                    ${label}: ${amount}
+                    <button style="margin-top:4px;" onclick="useCraftedItem('${k}')">Use</button>
+                </div>
+            `;
+        });
+    }
+
+    box.innerHTML = html;
+    document.getElementById("useItemUI").style.display = "flex";
+}
+
+function closeUseItem() {
+    document.getElementById("useItemUI").style.display = "none";
+}
+
+function shelterName(level, area) {
+    const extreme = isExtremeArea(area);
+    if (!extreme) {
+        switch(level) {
+            case 0: return "None";
+            case 1: return "Basic Cover";
+            case 2: return "Reinforced Shelter";
+            case 3: return "Secure Hideout";
+            case 4: return "Fortified Outpost";
+            case 5: return "Field Operations Base";
+            default: return "Unknown";
+        }
+    } else {
+        switch(level) {
+            case 0: return "None";
+            case 1: return "Makeshift Cover";
+            case 2: return "Reinforced Shell";
+            case 3: return "Hardened Redoubt";
+            case 4: return "Crimson Outpost";
+            case 5: return "Crimson Stronghold";
+            case 6: return "Crimson Field Operations Base";
+            default: return "Unknown";
+        }
+    }
+}
+
+function shelterCostForNextLevel(area) {
+    const level = getShelterLevel(area);
+    const extreme = isExtremeArea(area);
+    const maxLevel = extreme ? 6 : 5;
+    if (level >= maxLevel) return null;
+
+    if (level === 0) {
+        return { wood: 2, scrap: 1 };
+    } else if (level === 1) {
+        return { wood: 3, scrap: 3, fabric: 1 };
+    } else if (level === 2) {
+        return { scrap: 4, fabric: 2, electronics: 1 };
+    } else if (level === 3) {
+        return { scrap: 6, fabric: 3, electronics: 2 };
+    } else if (level === 4) {
+        return { scrap: 8, fabric: 4, electronics: 3, anomaly: 1 };
+    } else if (level === 5 && extreme) {
+        return { scrap: 10, fabric: 5, electronics: 4, anomaly: 2 };
+    }
+    return null;
+}
+
+function applyMetalBracketDiscount(cost) {
+    if (!state.status.metalBracketReady) return cost;
+    const newCost = Object.assign({}, cost);
+    if (newCost.scrap && newCost.scrap > 0) {
+        newCost.scrap = Math.max(0, newCost.scrap - 1);
+    }
+    state.status.metalBracketReady = false;
+    log("The metal bracket reduces the scrap needed for this shelter upgrade.");
+    return newCost;
+}
+
+function buildShelter() {
+    const area = state.area;
+    const level = getShelterLevel(area);
+    let cost = shelterCostForNextLevel(area);
+
+    if (!cost) {
+        log("Shelter here is already as secure as you can make it.");
+        return;
+    }
+
+    if (state.status.metalBracketReady) {
+        cost = applyMetalBracketDiscount(cost);
+    }
+
+    if (state.stats.energy < 10) {
+        log("You don't have the energy to work on shelter right now.");
+        return;
+    }
+
+    if (!canAfford(cost)) {
+        log("You don't have the materials to improve shelter here.");
+        return;
+    }
+
+    payCost(cost);
+    state.stats.energy = Math.max(0, state.stats.energy - 10);
+
+    advanceTime(2);
+
+    state.shelterByArea[area] = level + 1;
+    log(`You reinforce your shelter in ${area}. Shelter level is now ${level + 1} (${shelterName(level + 1, area)}).`);
+
+    renderUI();
+}
+
+function performAction(action) {
+    if (document.getElementById("gameOverUI").style.display === "flex") return;
+
+    switch(action) {
+        case "search":
+            if (state.stats.energy <= 0) {
+                log("You're too exhausted to search. You need to rest first.");
+                return;
+            }
+            log("You search the area. The environment answers with distant static.");
+            state.stats.energy = Math.max(0, state.stats.energy - 5);
+            advanceTime(1);
+            performScavengeLoot();
+            break;
+        case "rest":
+            const level = getShelterLevel(state.area);
+            let baseRest = 15;
+            if (level === 1) baseRest += 5;
+            if (level === 2) baseRest += 10;
+            if (level === 3) baseRest += 20;
+            if (level === 4) baseRest = 100;
+            if (level >= 5) baseRest = 100;
+
+            const beforeEnergy = state.stats.energy;
+            state.stats.energy = Math.min(100, state.stats.energy + baseRest);
+            const gained = state.stats.energy - beforeEnergy;
+
+            advanceTime(4);
+            log(`You rest inside your shelter (${shelterName(level, state.area)}). Energy +${gained}.`);
+            break;
+        case "buildShelter":
+            buildShelter();
+            break;
+    }
+    renderUI();
+}
+
+function rollTravelEncounter(from, to) {
+    if (from === "Golden Ridge" || to === "Golden Ridge") return;
+
+    const chance = isExtremeArea(from) || isExtremeArea(to) ? 0.4 : 0.25;
+    if (Math.random() > chance) return;
+
+    state.statsSummary.totalEncounters += 1;
+
+    let type = "generic";
+    if (from === "Frozen Relay Station" || to === "Frozen Relay Station" || from === "Cryoforming Lab 12" || to === "Cryoforming Lab 12") type = "frozen";
+    else if (from === "Storm Sector" || to === "Storm Sector" || from === "Pale Expanse" || to === "Pale Expanse" || from === "Static Plateau" || to === "Static Plateau") type = "storm";
+    else if (from === "Ship Graveyard" || to === "Ship Graveyard" || from === "Glass Mire" || to === "Glass Mire") type = "graveyard";
+    else if (from === "Deep Jungle Perimeter" || to === "Deep Jungle Perimeter" || from === "Verdant Relay Outpost" || to === "Verdant Relay Outpost" || from === "Ashen Exclusion Zone" || to === "Ashen Exclusion Zone") type = "jungle";
+    else if (from === "Anomaly Ridge" || to === "Anomaly Ridge" || from === "Basalt Crater" || to === "Basalt Crater" || from === "Hinterland Relay Fault" || to === "Hinterland Relay Fault") type = "anomaly";
+    else if (from === "Quarantine Research Annex" || to === "Quarantine Research Annex") type = "annex";
+    else if (from === "Subterranean Access Tunnels" || to === "Subterranean Access Tunnels") type = "tunnels";
+    else if (from === "W.R.E.A. Listening Post 09" || to === "W.R.E.A. Listening Post 09") type = "listening";
+    else if (from === "Shoreline Facility Ruins" || to === "Shoreline Facility Ruins" || from === "Blackwater Sink" || to === "Blackwater Sink") type = "shoreline";
+
+    if (type === "anomaly" && state.status.anomalyStabilizerReady) {
+        state.status.anomalyStabilizerReady = false;
+        log("An anomaly ripple brushes past, but the stabilizer dampens it before it can touch you.");
+        return;
+    }
+
+    let energyDelta = 0;
+    let heatDelta = 0;
+    let thirstDelta = 0;
+    let hungerDelta = 0;
+    let materialGain = null;
+    let message = "";
+
+    switch(type) {
+        case "frozen":
+            if (Math.random() < 0.5) {
+                energyDelta = -2;
+                message = "A sudden gust of freezing wind cuts through your layers, draining your strength.";
+            } else {
+                materialGain = { scrap: 1 };
+                message = "You spot a frost-cracked panel and pry loose a piece of scrap.";
+            }
+            break;
+        case "storm":
+            if (Math.random() < 0.5) {
+                energyDelta = -3;
+                heatDelta = +2;
+                message = "Wind shear and static surges force you to push harder, spiking your trace.";
+            } else {
+                materialGain = { wood: 1 };
+                message = "Lightning exposes a broken support beam. You salvage a usable length of wood.";
+            }
+            break;
+        case "graveyard":
+            if (Math.random() < 0.5) {
+                heatDelta = +2;
+                message = "Shifting metal groans around you, sensors pinging off exposed surfaces.";
+            } else {
+                materialGain = { scrap: 1 };
+                message = "A loose panel rattles free. You take the scrap before it disappears into the sand.";
+            }
+            break;
+        case "jungle":
+            if (Math.random() < 0.5) {
+                thirstDelta = +1;
+                message = "Insects swarm your face and neck. You push through, throat dry.";
+            } else {
+                materialGain = { fabric: 1 };
+                message = "You find a torn strip of synthetic fabric tangled in the undergrowth.";
+            }
+            break;
+        case "anomaly":
+            if (Math.random() < 0.7) {
+                heatDelta = +3;
+                message = "A flicker of distortion passes through you, leaving trace echoes in the grid.";
+            } else {
+                materialGain = { anomaly: 1 };
+                message = "A shard of anomaly residue clings to a rock. You collect it carefully.";
+            }
+            break;
+        case "annex":
+            if (Math.random() < 0.5) {
+                heatDelta = +1;
+                message = "A warning light pulses in the distance, raising your sense of exposure.";
+            } else {
+                materialGain = { electronics: 1 };
+                message = "You spot a discarded module half-buried in dust and pocket its components.";
+            }
+            break;
+        case "tunnels":
+            if (Math.random() < 0.5) {
+                energyDelta = -2;
+                message = "Dust and grit rain from the ceiling as you squeeze through a narrow passage.";
+            } else {
+                materialGain = { scrap: 1 };
+                message = "Old wiring and brackets line the tunnel. You salvage a piece of scrap.";
+            }
+            break;
+        case "listening":
+            if (Math.random() < 0.5) {
+                heatDelta = +1;
+                message = "A sudden signal ping echoes through the structures, making your skin crawl.";
+            } else {
+                materialGain = { electronics: 1 };
+                message = "A loose cable dangles from a console. You strip it for usable components.";
+            }
+            break;
+        case "shoreline":
+            if (Math.random() < 0.5) {
+                thirstDelta = +1;
+                message = "Salt spray stings your lips, making you acutely aware of how dry your mouth is.";
+            } else {
+                materialGain = { wood: 1 };
+                message = "A piece of driftwood catches your eye. You haul it up from the surf.";
+            }
+            break;
+        default:
+            energyDelta = -2;
+            message = "The terrain slows you more than expected, costing a little extra effort.";
+            break;
+    }
+
+    if (isExtremeArea(from) || isExtremeArea(to)) {
+        heatDelta += 2;
+        hungerDelta += 1;
+        thirstDelta += 1;
+    }
+
+    if (state.status.reinforcedPlateActive && (energyDelta < 0 || heatDelta > 0)) {
+        state.status.reinforcedPlateActive = false;
+        log("Your reinforced plate absorbs the worst of the impact. You push on unharmed.");
+        return;
+    }
+
+    if (energyDelta !== 0) {
+        state.stats.energy = Math.max(0, Math.min(100, state.stats.energy + energyDelta));
+    }
+    if (heatDelta !== 0) {
+        state.stats.heat = Math.max(0, Math.min(100, state.stats.heat + heatDelta));
+        state.heatByArea[state.area] = state.stats.heat;
+    }
+    if (thirstDelta !== 0) {
+        state.stats.thirst = Math.min(100, state.stats.thirst + thirstDelta);
+    }
+    if (hungerDelta !== 0) {
+        state.stats.hunger = Math.min(100, state.stats.hunger + hungerDelta);
+    }
+    if (materialGain) {
+        for (let k in materialGain) {
+            addMaterial(k, materialGain[k]);
+        }
+    }
+
+    log(message);
+    checkDeath();
+}
+
+function openMap() {
+    const mapBox = document.getElementById("mapContent");
+    mapBox.innerHTML = "";
+
+    const current = state.area;
+    const options = MAP[current] || {};
+
+    mapBox.innerHTML += `<p><b>Current Location:</b><br>${current}</p>`;
+    mapBox.innerHTML += `<p><b>Energy:</b> ${state.stats.energy}<br><b>Local Trace:</b> ${Math.round(state.heatByArea[current] || 0)}</p>`;
+    mapBox.innerHTML += `<hr><b>Reachable Nodes</b><br>`;
+
+    if (Object.keys(options).length === 0) {
+        mapBox.innerHTML += `<i>No direct connections from this node.</i>`;
+    } else {
+        for (let dest in options) {
+            const cost = options[dest];
+            const disabled = state.stats.energy < cost ? "disabled" : "";
+            mapBox.innerHTML += `
+                <div style="margin-bottom:6px;">
+                    <button ${disabled} onclick="travelTo('${dest}', ${cost})">
+                        → ${dest}  (Energy Cost: ${cost})
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    if (current !== "Golden Ridge") {
+        if (Math.random() < 0.01) {
+            mapBox.innerHTML += `
+                <hr>
+                <button onclick="travelToGoldenRidge()">
+                    ✦ Travel to Golden Ridge (0 Energy)
+                </button>
+            `;
+        }
+    } else {
+        if (state.lastAreaBeforeGolden) {
+            mapBox.innerHTML += `
+                <hr>
+                <button onclick="returnFromGoldenRidge()">
+                    Return to ${state.lastAreaBeforeGolden} (0 Energy)
+                </button>
+            `;
+        }
+    }
+
+    document.getElementById("mapUI").style.display = "flex";
+}
+
+function closeMap() {
+    document.getElementById("mapUI").style.display = "none";
+}
+
+function travelTo(destination, cost) {
+    if (state.stats.energy < cost) return;
+
+    state.stats.energy -= cost;
+    advanceTime(1);
+
+    const from = state.area;
+    state.area = destination;
+
+    if (destination !== "Golden Ridge") {
+        state.heatByArea[destination] = Math.min(100, (state.heatByArea[destination] || 0) + (isExtremeArea(destination) ? 6 : 3));
+        state.stats.heat = state.heatByArea[destination];
+    } else {
+        state.stats.heat = 0;
+        state.heatByArea[destination] = 0;
+    }
+
+    log(`You travel to ${destination}. Energy -${cost}.`);
+
+    applyTheme(destination);
+    applyOverlay(destination);
+
+    if (destination !== "Golden Ridge") {
+        rollTravelEncounter(from, destination);
+    }
+
+    renderUI();
+    closeMap();
+}
+
+function travelToGoldenRidge() {
+    const from = state.area;
+    state.lastAreaBeforeGolden = from;
+    advanceTime(1);
+
+    state.area = "Golden Ridge";
+    state.stats.heat = 0;
+    state.heatByArea["Golden Ridge"] = 0;
+
+    log("You follow a path that shouldn't exist. You arrive at Golden Ridge. Energy -0.");
+
+    applyTheme("Golden Ridge");
+    applyOverlay("Golden Ridge");
+
+    renderUI();
+    closeMap();
+}
+
+function returnFromGoldenRidge() {
+    if (!state.lastAreaBeforeGolden) {
+        closeMap();
+        return;
+    }
+    const dest = state.lastAreaBeforeGolden;
+    advanceTime(1);
+
+    state.area = dest;
+    log(`You step away from Golden Ridge and return to ${dest}. Energy -0.`);
+
+    applyTheme(dest);
+    applyOverlay(dest);
+
+    renderUI();
+    closeMap();
+}
+
+function openFullMap() {
+    const diagram = document.getElementById("fullMapDiagram");
+    const a = state.area;
+
+    function mark(name) {
+        if (name === "Golden Ridge") return "✦";
+        if (isExtremeArea(name)) {
+            return (a === name) ? "■" : "□";
+        }
+        return (a === name) ? "●" : "○";
+    }
+
+    const lines = [
+        "[ UPPER SECTOR ]",
+        "",
+        "                " + mark("Frozen Relay Station") + " Frozen Relay ─── " + mark("Cryoforming Lab 12") + " Cryoforming Lab 12",
+        "                       │",
+        "                " + mark("Overlook Watchtower") + " Overlook Tower ─── " + mark("Quarantine Research Annex") + " Research Annex",
+        "",
+        "[ CORE SECTOR ]",
+        "",
+        mark("Storm Sector") + " Storm Sector ─── " + mark("Shoreline Facility Ruins") + " Shoreline ─── " + mark("Ship Graveyard") + " Ship Graveyard ─── " + mark("Blackwater Sink") + " Blackwater Sink",
+        "       │                    │",
+        "       │                    └── " + mark("Pale Expanse") + " Pale Expanse",
+        "       │",
+        mark("Deep Jungle Perimeter") + " Deep Jungle ─── " + mark("Anomaly Ridge") + " Anomaly Ridge ─── " + mark("W.R.E.A. Listening Post 09") + " Listening Post",
+        "       │                         │",
+        "       └── " + mark("Basalt Crater") + " Basalt Crater      └── " + mark("Hinterland Relay Fault") + " Hinterland Fault",
+        "",
+        "[ BIO-RELAY BAND ]",
+        "",
+        mark("Verdant Relay Outpost") + " Verdant Relay Outpost ─── " + mark("Quarantine Research Annex") + " Research Annex",
+        "",
+        "[ SUBTERRANEAN ]",
+        "",
+        mark("Subterranean Access Tunnels") + " Subterranean Access Tunnels",
+        "",
+        "[ CRIMSON VERGE ]",
+        "",
+        mark("Glass Mire") + " Glass Mire ─── " + mark("Static Plateau") + " Static Plateau",
+        "       │                 │",
+        "       └── " + mark("Ashen Exclusion Zone") + " Ashen Exclusion Zone",
+        "",
+        "[ OUTER FRINGE ]",
+        "",
+        "                          " + mark("Golden Ridge") + " Golden Ridge (distant)"
+    ];
+
+    diagram.textContent = lines.join("\n");
+    document.getElementById("fullMapUI").style.display = "flex";
+}
+
+function closeFullMap() {
+    document.getElementById("fullMapUI").style.display = "none";
+}
+
+function renderInventory() {
+    const invBox = document.getElementById("inventory");
+    let html = `<b>INVENTORY</b><br>`;
+
+    let hasAny = false;
+    for (let key of inventoryOrder) {
+        const amount = state.materials[key] || 0;
+        if (amount > 0) hasAny = true;
+    }
+
+    if (!hasAny && Object.values(state.crafted).every(v => v === 0)) {
+        html += `<br><i>No materials recovered yet.</i>`;
+        invBox.innerHTML = html;
+        return;
+    }
+
+    html += `<div style="margin-top:4px;">`;
+    html += `<b>Materials</b><br>`;
+    for (let key of inventoryOrder) {
+        const amount = state.materials[key] || 0;
+        const label = key.charAt(0).toUpperCase() + key.slice(1);
+        html += `
+            <div class="inv-item">
+                <div class="inv-label">${label}: ${amount}</div>
+            </div>
+        `;
+    }
+    html += `</div>`;
+
+    const craftedKeys = Object.keys(state.crafted).filter(k => state.crafted[k] > 0);
+    if (craftedKeys.length > 0) {
+        html += `<br><b>Crafted Items</b><br>`;
+        craftedKeys.forEach(k => {
+            const amount = state.crafted[k];
+            const label = k
+                .replace(/([A-Z])/g, " $1")
+                .replace(/^./, c => c.toUpperCase());
+            html += `
+                <div class="inv-item">
+                    <div class="inv-label">${label}: ${amount}</div>
+                </div>
+            `;
+        });
+    }
+
+    invBox.innerHTML = html;
+}
+
+function renderUI() {
+    const area = state.area;
+    const shelterLevel = getShelterLevel(area);
+    const structures = state.structuresByArea[area];
+
+    const hour = state.time.hour.toString().padStart(2, "0") + ":00";
+    const day = state.time.day;
+    const totalHours = state.time.totalHours;
+
+    const healthPercent = Math.max(0, Math.min(100, state.stats.health));
+
+    document.getElementById("stats").innerHTML = `
+        <b>STATUS</b><br>
+        Health: ${state.stats.health} / 100
+        <div class="bar-container">
+            <div class="bar-fill" style="width:${healthPercent}%;"></div>
+        </div>
+        Energy: ${state.stats.energy}<br>
+        Hunger: ${state.stats.hunger} / 100<br>
+        Thirst: ${state.stats.thirst} / 100<br>
+        Trace (W.R.E.A. Detection): ${Math.round(state.stats.heat)} / 100<br>
+        <br>
+        <b>TIME</b><br>
+        Day ${day} — ${hour}<br>
+        Hours Survived: ${totalHours}<br>
+        <br>
+        <b>LOCAL SHELTER</b><br>
+        Level: ${shelterLevel} (${shelterName(shelterLevel, area)})<br>
+   `;
+
+    renderInventory();
+
+    const nextCost = shelterCostForNextLevel(area);
+    let shelterCostText = "";
+    if (nextCost) {
+        shelterCostText = "Next upgrade cost:<br>";
+        for (let key in nextCost) {
+            const label = key.charAt(0).toUpperCase() + key.slice(1);
+            shelterCostText += `- ${label}: ${nextCost[key]}<br>`;
+        }
+    } else {
+        shelterCostText = "Shelter here is fully reinforced.";
+    }
+
+    const purifierStatus = structures.purifier ? "Built" : "Not Built";
+    const cookerStatus = structures.cooker ? "Built" : "Not Built";
+
+    document.getElementById("area").innerHTML = `
+        <b>${state.area}</b><br><br>
+        The environment hums with distant static and unseen systems.<br><br>
+        <b>Shelter Status:</b><br>
+        ${shelterName(shelterLevel, area)}<br><br>
+        ${shelterCostText}<br>
+        <b>Local Structures:</b><br>
+        - Water Purifier: ${purifierStatus}<br>
+        - Cooker: ${cookerStatus}<br>
+    `;
+
+    const searchDisabled = state.stats.energy <= 0 ? "disabled" : "";
+
+    document.getElementById("actions").innerHTML = `
+        <button ${searchDisabled} onclick="performAction('search')">Search Area</button>
+        <button onclick="performAction('rest')">Rest</button>
+        <button onclick="performAction('buildShelter')">Build / Improve Shelter</button>
+        <button onclick="openUseItem()">Use Crafted Item</button>
+        <hr>
+        <button onclick="openMap()">Open Map (Travel)</button>
+        <button onclick="openFullMap()">View Full Map</button>
+        <button onclick="openCraft()">Open Crafting Console</button>
+    `;
+}
+
+playIntro();
+</script>
+
+</body>
+</html>
+
